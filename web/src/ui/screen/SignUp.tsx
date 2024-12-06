@@ -2,6 +2,7 @@ import { HTTPError } from "ky";
 import { createSignal, Show } from "solid-js";
 
 import { useAsync } from "../../service/hook/useAsync";
+import { useAuth } from "../../service/hook/useAuth";
 import { client } from "../../service/util/api";
 import { cn } from "../../service/util/cn";
 import { Alert, AlertDescription, AlertTitle } from "../component/base/Alert";
@@ -31,7 +32,8 @@ const LoginError = (props: { message: string }) => (
 
 export const SignUp = () => {
   let passwordField!: HTMLInputElement;
-  let loginForm!: HTMLFormElement;
+
+  const { loadUser } = useAuth({ goToApp: true });
 
   const { loading, wrap } = useAsync();
 
@@ -50,12 +52,14 @@ export const SignUp = () => {
             passwordField.focus();
             return;
           }
-          const form = new FormData(loginForm);
+          const form = new FormData(e.currentTarget);
+          const json = Object.fromEntries(form);
           wrap(() =>
             client
-              .post("api/auth/signup", { json: Object.fromEntries(form) })
+              .post("api/auth/signup", { json })
               .json()
-              .then(console.log)
+              .then(() => client.post("api/auth/login", { json }))
+              .then(() => loadUser())
               .catch((error: HTTPError) => {
                 switch (error.response.status) {
                   case 409:
@@ -68,7 +72,6 @@ export const SignUp = () => {
               }),
           );
         }}
-        ref={loginForm}
       >
         <Show when={error()}>
           {(error) => <LoginError message={error()} />}
